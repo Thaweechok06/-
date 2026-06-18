@@ -1,166 +1,338 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>iStyle Web App</title>
-
+<title>Dungeon Rogue Shooter</title>
 <style>
 body{
 margin:0;
-font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
-background:#f5f5f7;
-color:#1d1d1f;
+background:black;
+overflow:hidden;
+font-family:monospace;
 }
-
-/* NAVBAR */
-nav{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:12px 40px;
-background:rgba(255,255,255,0.8);
-backdrop-filter: blur(10px);
+canvas{
+display:block;
+margin:0 auto;
+background:#111;
+}
+#ui{
 position:fixed;
-width:100%;
-top:0;
-}
-
-nav .logo{
-font-weight:bold;
-font-size:20px;
-}
-
-nav a{
-margin:0 12px;
-text-decoration:none;
-color:#333;
+top:10px;
+left:10px;
+color:#0f0;
 font-size:14px;
-}
-
-nav a:hover{
-color:#000;
-}
-
-/* HERO */
-.hero{
-height:100vh;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-text-align:center;
-background:linear-gradient(to bottom,#fff,#eaeaea);
-}
-
-.hero h1{
-font-size:60px;
-margin:0;
-}
-
-.hero p{
-font-size:20px;
-color:#555;
-}
-
-.btn{
-margin-top:20px;
-padding:12px 24px;
-border-radius:30px;
-border:none;
-background:#0071e3;
-color:white;
-cursor:pointer;
-font-size:16px;
-}
-
-.btn:hover{
-background:#005bb5;
-}
-
-/* PRODUCT GRID */
-.products{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-gap:20px;
-padding:60px;
-background:#fff;
-}
-
-.card{
-background:#f9f9f9;
-border-radius:20px;
-padding:20px;
-text-align:center;
-transition:0.3s;
-}
-
-.card:hover{
-transform:scale(1.05);
-background:#fff;
-box-shadow:0 10px 30px rgba(0,0,0,0.1);
-}
-
-.card img{
-width:120px;
-}
-
-footer{
-text-align:center;
-padding:20px;
-font-size:12px;
-color:#888;
 }
 </style>
 </head>
 
 <body>
+<canvas id="c"></canvas>
+<div id="ui"></div>
 
-<!-- NAV -->
-<nav>
-<div class="logo">🍎 iStyle</div>
-<div>
-<a href="#">Mac</a>
-<a href="#">iPhone</a>
-<a href="#">iPad</a>
-<a href="#">Watch</a>
-</div>
-</nav>
+<script>
+/* =========================
+   DUNGEON ROGUE SHOOTER
+   NEW ORIGINAL GAME
+========================= */
 
-<!-- HERO -->
-<section class="hero">
-<h1>Think Different.</h1>
-<p>Experience technology in a simple, beautiful way.</p>
-<button class="btn" onclick="alert('Welcome to iStyle!')">
-Explore
-</button>
-</section>
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+const ui = document.getElementById("ui");
 
-<!-- PRODUCTS -->
-<section class="products">
+c.width = innerWidth;
+c.height = innerHeight;
 
-<div class="card">
-<img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg">
-<h3>MacBook Pro</h3>
-<p>Power. Moves fast.</p>
-</div>
+/* =========================
+   INPUT
+========================= */
+let key={};
+let mouse={x:0,y:0,down:false};
 
-<div class="card">
-<img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg">
-<h3>iPhone 15</h3>
-<p>Pro camera. Pro performance.</p>
-</div>
+addEventListener("keydown",e=>key[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>key[e.key.toLowerCase()]=false);
+addEventListener("mousemove",e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+addEventListener("mousedown",()=>mouse.down=true);
+addEventListener("mouseup",()=>mouse.down=false);
 
-<div class="card">
-<img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg">
-<h3>iPad Air</h3>
-<p>Light. Powerful. Magical.</p>
-</div>
+/* =========================
+   MAP SETTINGS
+========================= */
 
-</section>
+const tileSize = 40;
+const cols = Math.floor(c.width/tileSize);
+const rows = Math.floor(c.height/tileSize);
 
-<footer>
-© 2026 iStyle Web App Inspired by :contentReference[oaicite:0]{index=0}
-</footer>
+let map = [];
 
+/* 0 = wall, 1 = floor */
+
+function generateMap(){
+map=[];
+for(let y=0;y<rows;y++){
+map[y]=[];
+for(let x=0;x<cols;x++){
+map[y][x] = Math.random()<0.75 ? 1 : 0;
+}
+}
+}
+
+/* =========================
+   PLAYER
+========================= */
+
+class Player{
+constructor(){
+this.x=100;
+this.y=100;
+this.s=15;
+this.hp=100;
+this.angle=0;
+this.fire=0;
+}
+
+update(){
+
+let sp=2.5;
+
+if(key["w"]) this.y-=sp;
+if(key["s"]) this.y+=sp;
+if(key["a"]) this.x-=sp;
+if(key["d"]) this.x+=sp;
+
+this.angle = Math.atan2(mouse.y-this.y,mouse.x-this.x);
+
+if(this.fire>0) this.fire--;
+
+if(mouse.down && this.fire<=0){
+bullets.push(new Bullet(this.x,this.y,this.angle));
+this.fire=12;
+}
+}
+
+draw(){
+ctx.fillStyle="#00ffd5";
+ctx.fillRect(this.x-10,this.y-10,20,20);
+
+ctx.strokeStyle="#fff";
+ctx.beginPath();
+ctx.moveTo(this.x,this.y);
+ctx.lineTo(this.x+Math.cos(this.angle)*25,
+           this.y+Math.sin(this.angle)*25);
+ctx.stroke();
+}
+}
+
+/* =========================
+   BULLET
+========================= */
+
+class Bullet{
+constructor(x,y,a){
+this.x=x;
+this.y=y;
+this.a=a;
+this.sp=6;
+this.life=80;
+}
+
+update(){
+this.x+=Math.cos(this.a)*this.sp;
+this.y+=Math.sin(this.a)*this.sp;
+this.life--;
+}
+
+draw(){
+ctx.fillStyle="yellow";
+ctx.fillRect(this.x,this.y,4,4);
+}
+}
+
+/* =========================
+   ENEMY AI
+========================= */
+
+class Enemy{
+constructor(x,y){
+this.x=x;
+this.y=y;
+this.hp=30;
+this.sp=1.2;
+}
+
+update(){
+let a=Math.atan2(player.y-this.y,player.x-this.x);
+this.x+=Math.cos(a)*this.sp;
+this.y+=Math.sin(a)*this.sp;
+}
+
+draw(){
+ctx.fillStyle="red";
+ctx.fillRect(this.x-10,this.y-10,20,20);
+}
+}
+
+/* =========================
+   CHEST ITEM
+========================= */
+
+class Chest{
+constructor(x,y){
+this.x=x;
+this.y=y;
+this.open=false;
+}
+
+draw(){
+if(!this.open){
+ctx.fillStyle="gold";
+ctx.fillRect(this.x-8,this.y-8,16,16);
+}
+}
+}
+
+/* =========================
+   SYSTEMS
+========================= */
+
+const player=new Player();
+let bullets=[];
+let enemies=[];
+let chests=[];
+
+/* spawn */
+
+function spawn(){
+for(let i=0;i<10;i++){
+enemies.push(
+new Enemy(Math.random()*c.width,
+          Math.random()*c.height)
+);
+}
+
+for(let i=0;i<5;i++){
+chests.push(
+new Chest(Math.random()*c.width,
+          Math.random()*c.height)
+);
+}
+}
+
+/* =========================
+   COLLISION
+========================= */
+
+function hit(){
+for(let i=bullets.length-1;i>=0;i--){
+for(let j=enemies.length-1;j>=0;j--){
+let b=bullets[i];
+let e=enemies[j];
+
+if(Math.hypot(b.x-e.x,b.y-e.y)<15){
+e.hp-=15;
+bullets.splice(i,1);
+
+if(e.hp<=0){
+enemies.splice(j,1);
+}
+break;
+}
+}
+}
+}
+
+/* player damage */
+
+function enemyHit(){
+enemies.forEach(e=>{
+if(Math.hypot(e.x-player.x,e.y-player.y)<18){
+player.hp-=0.3;
+}
+});
+}
+
+/* chest */
+
+function chestCheck(){
+chests.forEach(c=>{
+if(!c.open && Math.hypot(c.x-player.x,c.y-player.y)<20){
+c.open=true;
+player.hp+=20;
+}
+});
+}
+
+/* =========================
+   DRAW MAP
+========================= */
+
+function drawMap(){
+for(let y=0;y<rows;y++){
+for(let x=0;x<cols;x++){
+
+if(map[y][x]==0){
+ctx.fillStyle="#222";
+ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
+}else{
+ctx.fillStyle="#0a0a0a";
+ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
+}
+}
+}
+}
+
+/* =========================
+   LOOP
+========================= */
+
+function update(){
+
+player.update();
+
+bullets.forEach(b=>b.update());
+bullets=bullets.filter(b=>b.life>0);
+
+enemies.forEach(e=>e.update());
+
+hit();
+enemyHit();
+chestCheck();
+
+/* UI */
+ui.innerHTML=
+"HP:"+player.hp.toFixed(0)+
+"<br>Enemies:"+enemies.length+
+"<br>Chests:"+chests.length;
+
+/* game over */
+if(player.hp<=0){
+alert("YOU DIED");
+location.reload();
+}
+}
+
+function draw(){
+
+ctx.clearRect(0,0,c.width,c.height);
+
+drawMap();
+
+chests.forEach(c=>c.draw());
+player.draw();
+enemies.forEach(e=>e.draw());
+bullets.forEach(b=>b.draw());
+}
+
+function loop(){
+update();
+draw();
+requestAnimationFrame(loop);
+}
+
+/* start */
+generateMap();
+spawn();
+loop();
+
+</script>
 </body>
 </html>
