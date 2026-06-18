@@ -1,105 +1,160 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Snake Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+
 <style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
 body{
+    background:#1e1e1e;
     display:flex;
     justify-content:center;
     align-items:center;
     height:100vh;
-    background:#111;
-    margin:0;
 }
-canvas{
-    border:2px solid white;
+
+.calculator{
+    background:#2d2d2d;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 0 20px rgba(0,0,0,0.5);
+    width:320px;
+}
+
+#display{
+    width:100%;
+    height:70px;
+    border:none;
+    border-radius:10px;
+    font-size:2rem;
+    text-align:right;
+    padding:10px;
+    margin-bottom:15px;
+    background:#111;
+    color:white;
+}
+
+.buttons{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+}
+
+button{
+    height:60px;
+    border:none;
+    border-radius:10px;
+    font-size:1.3rem;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+button:hover{
+    opacity:0.85;
+}
+
+.number{
+    background:#444;
+    color:white;
+}
+
+.operator{
+    background:#ff9500;
+    color:white;
+}
+
+.clear{
+    background:#ff3b30;
+    color:white;
+}
+
+.equal{
+    background:#34c759;
+    color:white;
 }
 </style>
 </head>
 <body>
 
-<canvas id="game" width="400" height="400"></canvas>
+<div class="calculator">
+    <input type="text" id="display" readonly>
+
+    <div class="buttons">
+        <button class="clear" onclick="clearDisplay()">C</button>
+        <button class="operator" onclick="append('/')">÷</button>
+        <button class="operator" onclick="append('*')">×</button>
+        <button class="operator" onclick="append('-')">−</button>
+
+        <button class="number" onclick="append('7')">7</button>
+        <button class="number" onclick="append('8')">8</button>
+        <button class="number" onclick="append('9')">9</button>
+        <button class="operator" onclick="append('+')">+</button>
+
+        <button class="number" onclick="append('4')">4</button>
+        <button class="number" onclick="append('5')">5</button>
+        <button class="number" onclick="append('6')">6</button>
+        <button class="equal" onclick="calculate()" rowspan="2">=</button>
+
+        <button class="number" onclick="append('1')">1</button>
+        <button class="number" onclick="append('2')">2</button>
+        <button class="number" onclick="append('3')">3</button>
+
+        <button class="number" onclick="append('0')">0</button>
+        <button class="number" onclick="append('.')">.</button>
+        <button class="number" onclick="backspace()">⌫</button>
+    </div>
+</div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const display = document.getElementById("display");
 
-const box = 20;
-
-let snake = [{x: 200, y: 200}];
-let food = {
-    x: Math.floor(Math.random()*20)*box,
-    y: Math.floor(Math.random()*20)*box
-};
-
-let dx = box;
-let dy = 0;
-let score = 0;
-
-document.addEventListener("keydown", e => {
-    if(e.key === "ArrowUp" && dy === 0){
-        dx = 0;
-        dy = -box;
-    }
-    if(e.key === "ArrowDown" && dy === 0){
-        dx = 0;
-        dy = box;
-    }
-    if(e.key === "ArrowLeft" && dx === 0){
-        dx = -box;
-        dy = 0;
-    }
-    if(e.key === "ArrowRight" && dx === 0){
-        dx = box;
-        dy = 0;
-    }
-});
-
-function draw(){
-    ctx.fillStyle = "#111";
-    ctx.fillRect(0,0,400,400);
-
-    snake.forEach((part,index)=>{
-        ctx.fillStyle = index===0 ? "lime" : "green";
-        ctx.fillRect(part.x,part.y,box,box);
-    });
-
-    ctx.fillStyle = "red";
-    ctx.fillRect(food.x,food.y,box,box);
-
-    let head = {
-        x: snake[0].x + dx,
-        y: snake[0].y + dy
-    };
-
-    if(
-        head.x < 0 || head.x >= 400 ||
-        head.y < 0 || head.y >= 400 ||
-        snake.some(seg => seg.x === head.x && seg.y === head.y)
-    ){
-        alert("Game Over! Score: " + score);
-        location.reload();
-    }
-
-    snake.unshift(head);
-
-    if(head.x === food.x && head.y === food.y){
-        score++;
-        food = {
-            x: Math.floor(Math.random()*20)*box,
-            y: Math.floor(Math.random()*20)*box
-        };
-    }else{
-        snake.pop();
-    }
-
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.fillText("Score: " + score, 10, 25);
+function append(value){
+    display.value += value;
 }
 
-setInterval(draw, 100);
+function clearDisplay(){
+    display.value = "";
+}
+
+function backspace(){
+    display.value = display.value.slice(0,-1);
+}
+
+function calculate(){
+    try{
+        display.value = eval(display.value);
+    }catch{
+        display.value = "Error";
+    }
+}
+
+document.addEventListener("keydown",(e)=>{
+    const allowed = "0123456789+-*/.";
+
+    if(allowed.includes(e.key)){
+        append(e.key);
+    }
+
+    if(e.key === "Enter"){
+        calculate();
+    }
+
+    if(e.key === "Backspace"){
+        backspace();
+    }
+
+    if(e.key === "Escape"){
+        clearDisplay();
+    }
+});
 </script>
 
 </body>
