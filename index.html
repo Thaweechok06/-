@@ -2,233 +2,247 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dungeon Rogue Shooter</title>
+<title>Real Shooter UI Game</title>
+
 <style>
 body{
 margin:0;
-background:black;
 overflow:hidden;
-font-family:monospace;
+background:#111;
+font-family:Arial;
 }
+
 canvas{
 display:block;
-margin:0 auto;
-background:#111;
 }
-#ui{
+
+/* HUD */
+#hud{
 position:fixed;
 top:10px;
 left:10px;
 color:#0f0;
 font-size:14px;
 }
+
+/* CONTROL BUTTONS */
+.btn{
+position:fixed;
+width:60px;
+height:60px;
+border-radius:50%;
+background:rgba(255,255,255,0.15);
+border:2px solid white;
+color:white;
+text-align:center;
+line-height:60px;
+user-select:none;
+}
+
+.btn:active{
+background:rgba(255,255,255,0.4);
+}
+
+/* positions */
+#up{bottom:140px;left:80px;}
+#down{bottom:20px;left:80px;}
+#left{bottom:80px;left:20px;}
+#right{bottom:80px;left:140px;}
+
+#shoot{right:40px;bottom:80px;}
+#reload{right:120px;bottom:40px;}
+#switch{right:120px;bottom:120px;}
+#jump{right:40px;bottom:160px;}
 </style>
 </head>
 
 <body>
-<canvas id="c"></canvas>
-<div id="ui"></div>
+
+<canvas id="game"></canvas>
+
+<div id="hud"></div>
+
+<!-- CONTROL BUTTONS -->
+<div id="up" class="btn">▲</div>
+<div id="down" class="btn">▼</div>
+<div id="left" class="btn">◀</div>
+<div id="right" class="btn">▶</div>
+
+<div id="shoot" class="btn">FIRE</div>
+<div id="reload" class="btn">R</div>
+<div id="switch" class="btn">SW</div>
+<div id="jump" class="btn">JUMP</div>
 
 <script>
-/* =========================
-   DUNGEON ROGUE SHOOTER
-   NEW ORIGINAL GAME
-========================= */
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+const hud=document.getElementById("hud");
 
-const c = document.getElementById("c");
-const ctx = c.getContext("2d");
-const ui = document.getElementById("ui");
+c.width=innerWidth;
+c.height=innerHeight;
 
-c.width = innerWidth;
-c.height = innerHeight;
-
-/* =========================
-   INPUT
-========================= */
+/* INPUT STATE */
 let key={};
-let mouse={x:0,y:0,down:false};
 
-addEventListener("keydown",e=>key[e.key.toLowerCase()]=true);
-addEventListener("keyup",e=>key[e.key.toLowerCase()]=false);
-addEventListener("mousemove",e=>{mouse.x=e.clientX;mouse.y=e.clientY});
-addEventListener("mousedown",()=>mouse.down=true);
-addEventListener("mouseup",()=>mouse.down=false);
+/* BUTTON CONTROL */
+function hold(id,keyName){
+let el=document.getElementById(id);
 
-/* =========================
-   MAP SETTINGS
-========================= */
+el.addEventListener("mousedown",()=>key[keyName]=true);
+el.addEventListener("mouseup",()=>key[keyName]=false);
+el.addEventListener("mouseleave",()=>key[keyName]=false);
 
-const tileSize = 40;
-const cols = Math.floor(c.width/tileSize);
-const rows = Math.floor(c.height/tileSize);
-
-let map = [];
-
-/* 0 = wall, 1 = floor */
-
-function generateMap(){
-map=[];
-for(let y=0;y<rows;y++){
-map[y]=[];
-for(let x=0;x<cols;x++){
-map[y][x] = Math.random()<0.75 ? 1 : 0;
-}
-}
+el.addEventListener("touchstart",()=>key[keyName]=true);
+el.addEventListener("touchend",()=>key[keyName]=false);
 }
 
-/* =========================
-   PLAYER
-========================= */
+hold("up","w");
+hold("down","s");
+hold("left","a");
+hold("right","d");
 
+/* actions */
+let shoot=false;
+let reload=false;
+let switchGun=false;
+let jump=false;
+
+function action(id,ref){
+let el=document.getElementById(id);
+el.addEventListener("mousedown",()=>ref.state=true);
+el.addEventListener("mouseup",()=>ref.state=false);
+el.addEventListener("touchstart",()=>ref.state=true);
+el.addEventListener("touchend",()=>ref.state=false);
+}
+
+let shootBtn={state:false};
+let reloadBtn={state:false};
+let switchBtn={state:false};
+let jumpBtn={state:false};
+
+action("shoot",shootBtn);
+action("reload",reloadBtn);
+action("switch",switchBtn);
+action("jump",jumpBtn);
+
+/* GAME OBJECTS */
 class Player{
 constructor(){
-this.x=100;
-this.y=100;
-this.s=15;
+this.x=200;
+this.y=200;
 this.hp=100;
-this.angle=0;
-this.fire=0;
+this.sp=3;
+
+this.guns=[
+{ name:"PISTOL", ammo:12, max:12 },
+{ name:"RIFLE", ammo:30, max:30 }
+];
+
+this.gun=0;
+this.cool=0;
 }
 
 update(){
 
-let sp=2.5;
+if(key["w"]) this.y-=this.sp;
+if(key["s"]) this.y+=this.sp;
+if(key["a"]) this.x-=this.sp;
+if(key["d"]) this.x+=this.sp;
 
-if(key["w"]) this.y-=sp;
-if(key["s"]) this.y+=sp;
-if(key["a"]) this.x-=sp;
-if(key["d"]) this.x+=sp;
-
-this.angle = Math.atan2(mouse.y-this.y,mouse.x-this.x);
-
-if(this.fire>0) this.fire--;
-
-if(mouse.down && this.fire<=0){
-bullets.push(new Bullet(this.x,this.y,this.angle));
-this.fire=12;
+/* shoot */
+if(shootBtn.state && this.cool<=0){
+let g=this.guns[this.gun];
+if(g.ammo>0){
+bullets.push(new Bullet(this.x,this.y));
+g.ammo--;
+this.cool=10;
 }
+}
+
+/* reload */
+if(reloadBtn.state){
+let g=this.guns[this.gun];
+g.ammo=g.max;
+reloadBtn.state=false;
+}
+
+/* switch gun */
+if(switchBtn.state){
+this.gun=(this.gun+1)%this.guns.length;
+switchBtn.state=false;
+}
+
+/* jump */
+if(jumpBtn.state){
+this.y-=20;
+jumpBtn.state=false;
+}
+
+if(this.cool>0) this.cool--;
 }
 
 draw(){
 ctx.fillStyle="#00ffd5";
-ctx.fillRect(this.x-10,this.y-10,20,20);
-
-ctx.strokeStyle="#fff";
-ctx.beginPath();
-ctx.moveTo(this.x,this.y);
-ctx.lineTo(this.x+Math.cos(this.angle)*25,
-           this.y+Math.sin(this.angle)*25);
-ctx.stroke();
+ctx.fillRect(this.x,this.y,20,20);
 }
 }
-
-/* =========================
-   BULLET
-========================= */
 
 class Bullet{
-constructor(x,y,a){
+constructor(x,y){
 this.x=x;
 this.y=y;
-this.a=a;
 this.sp=6;
-this.life=80;
+this.life=60;
 }
 
 update(){
-this.x+=Math.cos(this.a)*this.sp;
-this.y+=Math.sin(this.a)*this.sp;
+this.x+=this.sp;
 this.life--;
 }
 
 draw(){
 ctx.fillStyle="yellow";
-ctx.fillRect(this.x,this.y,4,4);
+ctx.fillRect(this.x,this.y,5,3);
 }
 }
-
-/* =========================
-   ENEMY AI
-========================= */
 
 class Enemy{
-constructor(x,y){
-this.x=x;
-this.y=y;
+constructor(){
+this.x=Math.random()*c.width;
+this.y=Math.random()*c.height;
 this.hp=30;
 this.sp=1.2;
 }
 
 update(){
-let a=Math.atan2(player.y-this.y,player.x-this.x);
-this.x+=Math.cos(a)*this.sp;
-this.y+=Math.sin(a)*this.sp;
+this.x-=this.sp;
 }
 
 draw(){
 ctx.fillStyle="red";
-ctx.fillRect(this.x-10,this.y-10,20,20);
+ctx.fillRect(this.x,this.y,20,20);
 }
 }
 
-/* =========================
-   CHEST ITEM
-========================= */
-
-class Chest{
-constructor(x,y){
-this.x=x;
-this.y=y;
-this.open=false;
-}
-
-draw(){
-if(!this.open){
-ctx.fillStyle="gold";
-ctx.fillRect(this.x-8,this.y-8,16,16);
-}
-}
-}
-
-/* =========================
-   SYSTEMS
-========================= */
-
-const player=new Player();
+/* GAME */
+let player=new Player();
 let bullets=[];
 let enemies=[];
-let chests=[];
 
 /* spawn */
+setInterval(()=>{
+enemies.push(new Enemy());
+},1500);
 
-function spawn(){
-for(let i=0;i<10;i++){
-enemies.push(
-new Enemy(Math.random()*c.width,
-          Math.random()*c.height)
-);
-}
-
-for(let i=0;i<5;i++){
-chests.push(
-new Chest(Math.random()*c.width,
-          Math.random()*c.height)
-);
-}
-}
-
-/* =========================
-   COLLISION
-========================= */
-
+/* collision */
 function hit(){
 for(let i=bullets.length-1;i>=0;i--){
 for(let j=enemies.length-1;j>=0;j--){
 let b=bullets[i];
 let e=enemies[j];
 
-if(Math.hypot(b.x-e.x,b.y-e.y)<15){
-e.hp-=15;
+if(Math.abs(b.x-e.x)<15){
+e.hp-=10;
 bullets.splice(i,1);
 
 if(e.hp<=0){
@@ -240,52 +254,7 @@ break;
 }
 }
 
-/* player damage */
-
-function enemyHit(){
-enemies.forEach(e=>{
-if(Math.hypot(e.x-player.x,e.y-player.y)<18){
-player.hp-=0.3;
-}
-});
-}
-
-/* chest */
-
-function chestCheck(){
-chests.forEach(c=>{
-if(!c.open && Math.hypot(c.x-player.x,c.y-player.y)<20){
-c.open=true;
-player.hp+=20;
-}
-});
-}
-
-/* =========================
-   DRAW MAP
-========================= */
-
-function drawMap(){
-for(let y=0;y<rows;y++){
-for(let x=0;x<cols;x++){
-
-if(map[y][x]==0){
-ctx.fillStyle="#222";
-ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
-}else{
-ctx.fillStyle="#0a0a0a";
-ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
-}
-}
-}
-}
-
-/* =========================
-   LOOP
-========================= */
-
 function update(){
-
 player.update();
 
 bullets.forEach(b=>b.update());
@@ -294,32 +263,22 @@ bullets=bullets.filter(b=>b.life>0);
 enemies.forEach(e=>e.update());
 
 hit();
-enemyHit();
-chestCheck();
 
-/* UI */
-ui.innerHTML=
-"HP:"+player.hp.toFixed(0)+
-"<br>Enemies:"+enemies.length+
-"<br>Chests:"+chests.length;
-
-/* game over */
-if(player.hp<=0){
-alert("YOU DIED");
-location.reload();
-}
+/* HUD */
+hud.innerHTML=`
+HP: ${player.hp}<br>
+Weapon: ${player.guns[player.gun].name}<br>
+Ammo: ${player.guns[player.gun].ammo}
+`;
 }
 
 function draw(){
+ctx.fillStyle="#111";
+ctx.fillRect(0,0,c.width,c.height);
 
-ctx.clearRect(0,0,c.width,c.height);
-
-drawMap();
-
-chests.forEach(c=>c.draw());
 player.draw();
-enemies.forEach(e=>e.draw());
 bullets.forEach(b=>b.draw());
+enemies.forEach(e=>e.draw());
 }
 
 function loop(){
@@ -328,11 +287,8 @@ draw();
 requestAnimationFrame(loop);
 }
 
-/* start */
-generateMap();
-spawn();
 loop();
-
 </script>
+
 </body>
 </html>
