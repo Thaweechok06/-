@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Real Shooter UI Game</title>
+<title>Sling Shot Game</title>
 
 <style>
 body{
 margin:0;
 overflow:hidden;
-background:#111;
+background:#1b1b1b;
 font-family:Arial;
 }
 
@@ -16,269 +16,221 @@ canvas{
 display:block;
 }
 
-/* HUD */
-#hud{
+#ui{
 position:fixed;
 top:10px;
 left:10px;
 color:#0f0;
 font-size:14px;
 }
-
-/* CONTROL BUTTONS */
-.btn{
-position:fixed;
-width:60px;
-height:60px;
-border-radius:50%;
-background:rgba(255,255,255,0.15);
-border:2px solid white;
-color:white;
-text-align:center;
-line-height:60px;
-user-select:none;
-}
-
-.btn:active{
-background:rgba(255,255,255,0.4);
-}
-
-/* positions */
-#up{bottom:140px;left:80px;}
-#down{bottom:20px;left:80px;}
-#left{bottom:80px;left:20px;}
-#right{bottom:80px;left:140px;}
-
-#shoot{right:40px;bottom:80px;}
-#reload{right:120px;bottom:40px;}
-#switch{right:120px;bottom:120px;}
-#jump{right:40px;bottom:160px;}
 </style>
 </head>
 
 <body>
 
 <canvas id="game"></canvas>
-
-<div id="hud"></div>
-
-<!-- CONTROL BUTTONS -->
-<div id="up" class="btn">▲</div>
-<div id="down" class="btn">▼</div>
-<div id="left" class="btn">◀</div>
-<div id="right" class="btn">▶</div>
-
-<div id="shoot" class="btn">FIRE</div>
-<div id="reload" class="btn">R</div>
-<div id="switch" class="btn">SW</div>
-<div id="jump" class="btn">JUMP</div>
+<div id="ui"></div>
 
 <script>
 const c=document.getElementById("game");
 const ctx=c.getContext("2d");
-const hud=document.getElementById("hud");
+const ui=document.getElementById("ui");
 
 c.width=innerWidth;
 c.height=innerHeight;
 
-/* INPUT STATE */
-let key={};
+/* =========================
+   PHYSICS SETTINGS
+========================= */
 
-/* BUTTON CONTROL */
-function hold(id,keyName){
-let el=document.getElementById(id);
+let gravity=0.4;
 
-el.addEventListener("mousedown",()=>key[keyName]=true);
-el.addEventListener("mouseup",()=>key[keyName]=false);
-el.addEventListener("mouseleave",()=>key[keyName]=false);
+/* mouse */
+let mouse={
+x:0,
+y:0,
+down:false
+};
 
-el.addEventListener("touchstart",()=>key[keyName]=true);
-el.addEventListener("touchend",()=>key[keyName]=false);
-}
+addEventListener("mousemove",(e)=>{
+mouse.x=e.clientX;
+mouse.y=e.clientY;
+});
 
-hold("up","w");
-hold("down","s");
-hold("left","a");
-hold("right","d");
+addEventListener("mousedown",()=>mouse.down=true);
+addEventListener("mouseup",()=>mouse.down=false);
 
-/* actions */
-let shoot=false;
-let reload=false;
-let switchGun=false;
-let jump=false;
+/* =========================
+   SLING POINT
+========================= */
 
-function action(id,ref){
-let el=document.getElementById(id);
-el.addEventListener("mousedown",()=>ref.state=true);
-el.addEventListener("mouseup",()=>ref.state=false);
-el.addEventListener("touchstart",()=>ref.state=true);
-el.addEventListener("touchend",()=>ref.state=false);
-}
+let sling={
+x:150,
+y:c.height-150
+};
 
-let shootBtn={state:false};
-let reloadBtn={state:false};
-let switchBtn={state:false};
-let jumpBtn={state:false};
+/* =========================
+   BALL
+========================= */
 
-action("shoot",shootBtn);
-action("reload",reloadBtn);
-action("switch",switchBtn);
-action("jump",jumpBtn);
-
-/* GAME OBJECTS */
-class Player{
+class Ball{
 constructor(){
-this.x=200;
-this.y=200;
-this.hp=100;
-this.sp=3;
+this.x=sling.x;
+this.y=sling.y;
+this.r=10;
 
-this.guns=[
-{ name:"PISTOL", ammo:12, max:12 },
-{ name:"RIFLE", ammo:30, max:30 }
-];
+this.vx=0;
+this.vy=0;
 
-this.gun=0;
-this.cool=0;
+this.launched=false;
 }
 
 update(){
 
-if(key["w"]) this.y-=this.sp;
-if(key["s"]) this.y+=this.sp;
-if(key["a"]) this.x-=this.sp;
-if(key["d"]) this.x+=this.sp;
-
-/* shoot */
-if(shootBtn.state && this.cool<=0){
-let g=this.guns[this.gun];
-if(g.ammo>0){
-bullets.push(new Bullet(this.x,this.y));
-g.ammo--;
-this.cool=10;
-}
+if(!this.launched && mouse.down){
+this.x=mouse.x;
+this.y=mouse.y;
 }
 
-/* reload */
-if(reloadBtn.state){
-let g=this.guns[this.gun];
-g.ammo=g.max;
-reloadBtn.state=false;
+if(!mouse.down && !this.launched){
+this.vx=(sling.x-this.x)*0.2;
+this.vy=(sling.y-this.y)*0.2;
+this.launched=true;
 }
 
-/* switch gun */
-if(switchBtn.state){
-this.gun=(this.gun+1)%this.guns.length;
-switchBtn.state=false;
+if(this.launched){
+this.vy+=gravity;
+
+this.x+=this.vx;
+this.y+=this.vy;
 }
 
-/* jump */
-if(jumpBtn.state){
-this.y-=20;
-jumpBtn.state=false;
+/* reset if out */
+if(this.y>c.height || this.x>c.width){
+resetBall();
 }
-
-if(this.cool>0) this.cool--;
 }
 
 draw(){
-ctx.fillStyle="#00ffd5";
-ctx.fillRect(this.x,this.y,20,20);
+ctx.fillStyle="orange";
+ctx.beginPath();
+ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+ctx.fill();
 }
 }
 
-class Bullet{
+/* =========================
+   BLOCKS (TARGET)
+========================= */
+
+class Block{
 constructor(x,y){
 this.x=x;
 this.y=y;
-this.sp=6;
-this.life=60;
-}
-
-update(){
-this.x+=this.sp;
-this.life--;
+this.w=40;
+this.h=40;
+this.hp=3;
 }
 
 draw(){
-ctx.fillStyle="yellow";
-ctx.fillRect(this.x,this.y,5,3);
+ctx.fillStyle="brown";
+ctx.fillRect(this.x,this.y,this.w,this.h);
 }
 }
 
-class Enemy{
-constructor(){
-this.x=Math.random()*c.width;
-this.y=Math.random()*c.height;
-this.hp=30;
-this.sp=1.2;
+/* =========================
+   GAME OBJECTS
+========================= */
+
+let ball=new Ball();
+let blocks=[];
+let score=0;
+
+/* create blocks */
+function createLevel(){
+blocks=[];
+for(let i=0;i<6;i++){
+blocks.push(new Block(600+i*45,c.height-60));
+}
+for(let i=0;i<3;i++){
+blocks.push(new Block(650+i*45,c.height-100));
+}
 }
 
-update(){
-this.x-=this.sp;
+createLevel();
+
+/* =========================
+   RESET BALL
+========================= */
+
+function resetBall(){
+ball=new Ball();
 }
 
-draw(){
-ctx.fillStyle="red";
-ctx.fillRect(this.x,this.y,20,20);
+/* =========================
+   COLLISION
+========================= */
+
+function collision(){
+
+blocks.forEach((b,i)=>{
+if(
+ball.x>b.x &&
+ball.x<b.x+b.w &&
+ball.y>b.y &&
+ball.y<b.y+b.h
+){
+b.hp--;
+ball.vx*=-0.6;
+ball.vy*=-0.6;
+
+if(b.hp<=0){
+blocks.splice(i,1);
+score+=10;
 }
+}
+});
 }
 
-/* GAME */
-let player=new Player();
-let bullets=[];
-let enemies=[];
+/* =========================
+   DRAW SLING
+========================= */
 
-/* spawn */
-setInterval(()=>{
-enemies.push(new Enemy());
-},1500);
+function drawSling(){
+if(!ball.launched && mouse.down){
+ctx.strokeStyle="#fff";
+ctx.beginPath();
+ctx.moveTo(sling.x,sling.y);
+ctx.lineTo(mouse.x,mouse.y);
+ctx.stroke();
+}
 
-/* collision */
-function hit(){
-for(let i=bullets.length-1;i>=0;i--){
-for(let j=enemies.length-1;j>=0;j--){
-let b=bullets[i];
-let e=enemies[j];
+ctx.fillStyle="white";
+ctx.fillRect(sling.x-5,sling.y-5,10,10);
+}
 
-if(Math.abs(b.x-e.x)<15){
-e.hp-=10;
-bullets.splice(i,1);
-
-if(e.hp<=0){
-enemies.splice(j,1);
-}
-break;
-}
-}
-}
-}
+/* =========================
+   LOOP
+========================= */
 
 function update(){
-player.update();
+ball.update();
+collision();
 
-bullets.forEach(b=>b.update());
-bullets=bullets.filter(b=>b.life>0);
-
-enemies.forEach(e=>e.update());
-
-hit();
-
-/* HUD */
-hud.innerHTML=`
-HP: ${player.hp}<br>
-Weapon: ${player.guns[player.gun].name}<br>
-Ammo: ${player.guns[player.gun].ammo}
-`;
+ui.innerHTML=
+"Score: "+score+
+"<br>Blocks: "+blocks.length;
 }
 
 function draw(){
-ctx.fillStyle="#111";
+ctx.fillStyle="#1b1b1b";
 ctx.fillRect(0,0,c.width,c.height);
 
-player.draw();
-bullets.forEach(b=>b.draw());
-enemies.forEach(e=>e.draw());
+drawSling();
+
+ball.draw();
+
+blocks.forEach(b=>b.draw());
 }
 
 function loop(){
