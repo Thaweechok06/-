@@ -1,181 +1,106 @@
-import pygame
-import random
-import sys
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Snake Game</title>
+<style>
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:#111;
+    margin:0;
+}
+canvas{
+    border:2px solid white;
+}
+</style>
+</head>
+<body>
 
-# -------------------
-# Initialization
-# -------------------
-pygame.init()
+<canvas id="game" width="400" height="400"></canvas>
 
-WIDTH, HEIGHT = 800, 600
-CELL_SIZE = 20
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Snake Game A+")
+const box = 20;
 
-clock = pygame.time.Clock()
+let snake = [{x: 200, y: 200}];
+let food = {
+    x: Math.floor(Math.random()*20)*box,
+    y: Math.floor(Math.random()*20)*box
+};
 
-# Colors
-BLACK = (20, 20, 20)
-GREEN = (0, 200, 0)
-DARK_GREEN = (0, 120, 0)
-RED = (220, 50, 50)
-WHITE = (255, 255, 255)
-YELLOW = (255, 215, 0)
+let dx = box;
+let dy = 0;
+let score = 0;
 
-font = pygame.font.SysFont("Arial", 28)
-big_font = pygame.font.SysFont("Arial", 50)
+document.addEventListener("keydown", e => {
+    if(e.key === "ArrowUp" && dy === 0){
+        dx = 0;
+        dy = -box;
+    }
+    if(e.key === "ArrowDown" && dy === 0){
+        dx = 0;
+        dy = box;
+    }
+    if(e.key === "ArrowLeft" && dx === 0){
+        dx = -box;
+        dy = 0;
+    }
+    if(e.key === "ArrowRight" && dx === 0){
+        dx = box;
+        dy = 0;
+    }
+});
 
-high_score = 0
+function draw(){
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0,0,400,400);
 
+    snake.forEach((part,index)=>{
+        ctx.fillStyle = index===0 ? "lime" : "green";
+        ctx.fillRect(part.x,part.y,box,box);
+    });
 
-# -------------------
-# Functions
-# -------------------
-def random_food():
-    x = random.randint(0, (WIDTH // CELL_SIZE) - 1) * CELL_SIZE
-    y = random.randint(0, (HEIGHT // CELL_SIZE) - 1) * CELL_SIZE
-    return [x, y]
+    ctx.fillStyle = "red";
+    ctx.fillRect(food.x,food.y,box,box);
 
+    let head = {
+        x: snake[0].x + dx,
+        y: snake[0].y + dy
+    };
 
-def draw_text(text, font_obj, color, x, y):
-    surface = font_obj.render(text, True, color)
-    screen.blit(surface, (x, y))
+    if(
+        head.x < 0 || head.x >= 400 ||
+        head.y < 0 || head.y >= 400 ||
+        snake.some(seg => seg.x === head.x && seg.y === head.y)
+    ){
+        alert("Game Over! Score: " + score);
+        location.reload();
+    }
 
+    snake.unshift(head);
 
-def reset_game():
-    snake = [
-        [WIDTH // 2, HEIGHT // 2]
-    ]
-    direction = "RIGHT"
-    food = random_food()
-    score = 0
+    if(head.x === food.x && head.y === food.y){
+        score++;
+        food = {
+            x: Math.floor(Math.random()*20)*box,
+            y: Math.floor(Math.random()*20)*box
+        };
+    }else{
+        snake.pop();
+    }
 
-    return snake, direction, food, score
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 10, 25);
+}
 
+setInterval(draw, 100);
+</script>
 
-# -------------------
-# Main Game
-# -------------------
-snake, direction, food, score = reset_game()
-
-game_over = False
-
-while True:
-
-    # Events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-        if event.type == pygame.KEYDOWN:
-
-            if not game_over:
-                if event.key == pygame.K_UP and direction != "DOWN":
-                    direction = "UP"
-
-                elif event.key == pygame.K_DOWN and direction != "UP":
-                    direction = "DOWN"
-
-                elif event.key == pygame.K_LEFT and direction != "RIGHT":
-                    direction = "LEFT"
-
-                elif event.key == pygame.K_RIGHT and direction != "LEFT":
-                    direction = "RIGHT"
-
-            if game_over:
-                if event.key == pygame.K_r:
-                    snake, direction, food, score = reset_game()
-                    game_over = False
-
-    if not game_over:
-
-        # Move Snake
-        head_x, head_y = snake[0]
-
-        if direction == "UP":
-            head_y -= CELL_SIZE
-
-        elif direction == "DOWN":
-            head_y += CELL_SIZE
-
-        elif direction == "LEFT":
-            head_x -= CELL_SIZE
-
-        elif direction == "RIGHT":
-            head_x += CELL_SIZE
-
-        new_head = [head_x, head_y]
-        snake.insert(0, new_head)
-
-        # Eat food
-        if new_head == food:
-            score += 10
-            food = random_food()
-        else:
-            snake.pop()
-
-        # Collision with wall
-        if (
-            head_x < 0 or
-            head_x >= WIDTH or
-            head_y < 0 or
-            head_y >= HEIGHT
-        ):
-            game_over = True
-
-        # Collision with self
-        if new_head in snake[1:]:
-            game_over = True
-
-        if score > high_score:
-            high_score = score
-
-    # Draw
-    screen.fill(BLACK)
-
-    # Food
-    pygame.draw.rect(
-        screen,
-        RED,
-        (food[0], food[1], CELL_SIZE, CELL_SIZE),
-        border_radius=5
-    )
-
-    # Snake
-    for i, segment in enumerate(snake):
-
-        color = GREEN if i == 0 else DARK_GREEN
-
-        pygame.draw.rect(
-            screen,
-            color,
-            (segment[0], segment[1], CELL_SIZE, CELL_SIZE),
-            border_radius=4
-        )
-
-    # Score
-    draw_text(f"Score: {score}", font, WHITE, 10, 10)
-    draw_text(f"High Score: {high_score}", font, YELLOW, 10, 45)
-
-    # Game Over
-    if game_over:
-        draw_text(
-            "GAME OVER",
-            big_font,
-            RED,
-            WIDTH // 2 - 150,
-            HEIGHT // 2 - 60
-        )
-
-        draw_text(
-            "Press R to Restart",
-            font,
-            WHITE,
-            WIDTH // 2 - 120,
-            HEIGHT // 2 + 10
-        )
-
-    pygame.display.flip()
-    clock.tick(10)
+</body>
+</html>
